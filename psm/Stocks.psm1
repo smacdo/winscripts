@@ -18,15 +18,17 @@ Typically the first result in a set of results is the best match.
 #>
 function Find-StockSymbol {
     [CmdletBinding()]
+    [OutputType([String[]])]
     Param(
         [Parameter(Mandatory=$true, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [ValidateNotNullOrEmpty()]
         [string]
-        $name
+        $Name
     )
     Process {
         # Make a web request using the Yahoo! web api to get a list of stock ticker symbols that match the name.
-        $name = [System.Web.HttpUtility]::UrlEncode($name)
-        $response = Invoke-WebRequest "http://d.yimg.com/autoc.finance.yahoo.com/autoc?query=$name&region=1&lang=en%22"
+        $Name = [System.Web.HttpUtility]::UrlEncode($Name)
+        $response = Invoke-WebRequest "http://d.yimg.com/autoc.finance.yahoo.com/autoc?query=$Name&region=1&lang=en%22"
         $results = $response.Content | ConvertFrom-Json
 
         # Convert the JSON result into a PowerShell array holding all potential stock ticker symbols.
@@ -59,25 +61,27 @@ This function will throw an error (ArgumentException) if the symbol could not be
 #>
 function Get-Stock {
     [CmdletBinding()]
+    [OutputType([psobject])]
     Param(
         [Parameter(Mandatory=$true, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [ValidateNotNullOrEmpty()]
         [string]
-        $symbol
+        $Symbol
     )
     Process {
         # Make a web api request to get the stock data.
         # Notes on Web API: https://www.alphavantage.co/documentation/
-        $symbol = [System.Web.HttpUtility]::UrlEncode($symbol)
-        $request = Invoke-WebRequest "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=$($symbol)&apikey=KPCCCRJVMOGN9L6T" -ErrorAction Stop
+        $Symbol = [System.Web.HttpUtility]::UrlEncode($Symbol)
+        $request = Invoke-WebRequest "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=$($Symbol)&apikey=KPCCCRJVMOGN9L6T" -ErrorAction Stop
         $data = $request.Content | ConvertFrom-Json
 
         if (-not([bool]($data.PSObject.Properties.name -match 'Global Quote'))) {
-            throw [System.ArgumentException]::New("Invalid stock ticker symbol '$($symbol)'")
+            throw [System.ArgumentException]::New("Invalid stock ticker symbol '$($Symbol)'")
         }
 
         # Copy JSON values to a PowerShell object representing the stock data.
         $stock = New-Object -TypeName PSObject -Property @{
-            'Symbol'           = $symbol
+            'Symbol'           = $Symbol
             'Open'             = [float]::Parse($($data.'Global Quote'.'02. open'), [CultureInfo]::InvariantCulture.NumberFormat)
             'High'             = [float]::Parse($($data.'Global Quote'.'03. high'), [CultureInfo]::InvariantCulture.NumberFormat)
             'Low'              = [float]::Parse($($data.'Global Quote'.'04. low'), [CultureInfo]::InvariantCulture.NumberFormat)
